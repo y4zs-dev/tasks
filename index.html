@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Workout Task Manager</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+</head>
+<body class="bg-gray-900 min-h-screen text-white">
+    <div class="max-w-2xl mx-auto p-6">
+        <!-- Header with Date/Time -->
+        <div class="flex justify-between items-center mb-8">
+            <div id="datetime" class="text-lg text-gray-300">
+                <!-- Date and time will be inserted here -->
+            </div>
+            <h1 class="text-2xl font-bold text-orange-400">💪 Workout Tasks</h1>
+        </div>
+
+        <!-- Add Task Section -->
+        <div class="bg-gray-800 rounded-lg p-4 mb-6 shadow-lg">
+            <div class="flex gap-3">
+                <input 
+                    type="text" 
+                    id="taskInput" 
+                    placeholder="Add a workout task (e.g., 20 Push-ups)" 
+                    class="flex-1 bg-gray-700 text-white px-4 py-3 rounded-lg outline-none focus:ring-2 focus:ring-orange-400 placeholder-gray-400"
+                    onkeypress="if(event.key === 'Enter') addTask()"
+                >
+                <button 
+                    onclick="addTask()" 
+                    class="bg-orange-500 hover:bg-orange-600 px-6 py-3 rounded-lg font-semibold transition-colors cursor-pointer"
+                >
+                    + Add
+                </button>
+            </div>
+        </div>
+
+        <!-- Tasks List -->
+        <div id="tasksList" class="space-y-3">
+            <!-- Tasks will be rendered here -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center py-12 text-gray-500 hidden">
+            <p class="text-5xl mb-4">🏋️</p>
+            <p>No tasks yet. Add your first workout!</p>
+        </div>
+
+        <!-- Stats -->
+        <div id="stats" class="mt-8 text-center text-gray-400 text-sm">
+            <!-- Stats will be shown here -->
+        </div>
+    </div>
+
+    <script>
+        // Initialize tasks from localStorage
+        let tasks = JSON.parse(localStorage.getItem('workoutTasks')) || [];
+
+        // Update date and time
+        function updateDateTime() {
+            const now = new Date();
+            const options = { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            };
+            document.getElementById('datetime').textContent = now.toLocaleDateString('en-US', options);
+        }
+
+        // Save tasks to localStorage
+        function saveTasks() {
+            localStorage.setItem('workoutTasks', JSON.stringify(tasks));
+        }
+
+        // Add a new task
+        function addTask() {
+            const input = document.getElementById('taskInput');
+            const taskName = input.value.trim();
+            
+            if (taskName === '') return;
+
+            const task = {
+                id: Date.now(),
+                name: taskName,
+                completed: false,
+                createdAt: new Date().toISOString()
+            };
+
+            tasks.unshift(task);
+            saveTasks();
+            renderTasks();
+            input.value = '';
+            input.focus();
+        }
+
+        // Delete a task
+        function deleteTask(id) {
+            tasks = tasks.filter(task => task.id !== id);
+            saveTasks();
+            renderTasks();
+        }
+
+        // Toggle task completion
+        function toggleTask(id) {
+            tasks = tasks.map(task => {
+                if (task.id === id) {
+                    return { ...task, completed: !task.completed };
+                }
+                return task;
+            });
+            saveTasks();
+            renderTasks();
+        }
+
+        // Edit a task
+        function editTask(id) {
+            const task = tasks.find(t => t.id === id);
+            const taskEl = document.querySelector(`[data-task-id="${id}"]`);
+            const nameSpan = taskEl.querySelector('.task-name');
+            
+            // Create input for editing
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.value = task.name;
+            input.className = 'bg-gray-600 text-white px-2 py-1 rounded outline-none focus:ring-2 focus:ring-orange-400 flex-1';
+            
+            // Replace span with input
+            nameSpan.replaceWith(input);
+            input.focus();
+            input.select();
+
+            // Save on blur or enter
+            const saveEdit = () => {
+                const newName = input.value.trim();
+                if (newName !== '') {
+                    tasks = tasks.map(t => {
+                        if (t.id === id) {
+                            return { ...t, name: newName };
+                        }
+                        return t;
+                    });
+                    saveTasks();
+                }
+                renderTasks();
+            };
+
+            input.addEventListener('blur', saveEdit);
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    input.blur();
+                }
+            });
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    renderTasks();
+                }
+            });
+        }
+
+        // Render all tasks
+        function renderTasks() {
+            const tasksList = document.getElementById('tasksList');
+            const emptyState = document.getElementById('emptyState');
+            const stats = document.getElementById('stats');
+
+            if (tasks.length === 0) {
+                tasksList.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                stats.innerHTML = '';
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            tasksList.innerHTML = tasks.map(task => `
+                <div data-task-id="${task.id}" class="bg-gray-800 rounded-lg p-4 flex items-center gap-4 shadow-lg hover:bg-gray-750 transition-colors ${task.completed ? 'opacity-60' : ''}">
+                    <!-- Checkbox -->
+                    <button 
+                        onclick="toggleTask(${task.id})" 
+                        class="w-7 h-7 rounded-full border-2 flex items-center justify-center transition-colors cursor-pointer ${task.completed ? 'bg-green-500 border-green-500' : 'border-gray-500 hover:border-orange-400'}"
+                    >
+                        ${task.completed ? '<svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>' : ''}
+                    </button>
+
+                    <!-- Task Name -->
+                    <span class="task-name flex-1 text-lg ${task.completed ? 'line-through text-gray-400' : 'text-white'}">
+                        ${escapeHtml(task.name)}
+                    </span>
+
+                    <!-- Edit Button -->
+                    <button 
+                        onclick="editTask(${task.id})" 
+                        class="text-gray-400 hover:text-orange-400 p-2 transition-colors cursor-pointer"
+                        title="Edit"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                        </svg>
+                    </button>
+
+                    <!-- Delete Button -->
+                    <button 
+                        onclick="deleteTask(${task.id})" 
+                        class="text-gray-400 hover:text-red-500 p-2 transition-colors cursor-pointer"
+                        title="Delete"
+                    >
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                    </button>
+                </div>
+            `).join('');
+
+            // Update stats
+            const completed = tasks.filter(t => t.completed).length;
+            const total = tasks.length;
+            stats.innerHTML = `<span class="text-green-400">${completed}</span> of <span class="text-orange-400">${total}</span> tasks completed`;
+        }
+
+        // Escape HTML to prevent XSS
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Initialize
+        updateDateTime();
+        setInterval(updateDateTime, 1000);
+        renderTasks();
+    </script>
+</body>
+</html>
